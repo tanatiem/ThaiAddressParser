@@ -18,7 +18,7 @@ import difflib
 import random
 
 
-def drop_nan(addr_list):
+def drop_nan(addr_list: str) -> list:
     '''
     drop useless parts of address list
     :param addr_list:
@@ -27,14 +27,13 @@ def drop_nan(addr_list):
     temp = []
     for a in addr_list:
         if len(a.replace('.', '').replace(' ', '').replace('/', '').replace('{', '').replace('}', '')
-                       .replace('-', '').replace('(', '').replace(')', '')):
+               .replace('-', '').replace('(', '').replace(')', '')):
             temp.append(a)
     return temp
 
 
-def check_th_chars(s):
+def check_th_chars(s: str) -> bool:
     '''
-
     :param s:
     :return: check whether it contains thailand character or not
     '''
@@ -47,7 +46,7 @@ def check_th_chars(s):
     return len(t) > 0
 
 
-def compute_similarity(str1, str2, mode=1):
+def compute_similarity(str1: str, str2: str, mode=1) -> float | int:
     '''
     test the speed of similarity computation
     :param str1:
@@ -62,12 +61,12 @@ def compute_similarity(str1, str2, mode=1):
     return similarity
 
 
-def download_thai_address():
+def download_thai_address() -> None:
     print('Downloading the address information of Thailand ...')
     url = 'https://en.wikipedia.org/wiki/List_of_tambon_in_Thailand'
     data = requests.get(url).text
     data = BeautifulSoup(data, "html.parser")
-    urls = data.find_all(name='ul')[0]
+    urls = data.select_one('div.mw-parser-output').find('ul')
     hrefs = urls.find_all(name='li')
     res = {}
     th_en = {}
@@ -75,7 +74,8 @@ def download_thai_address():
         href = 'https://en.wikipedia.org/' + h.find(name='a')['href']
         data = requests.get(href).text
         data = BeautifulSoup(data, 'html.parser')
-        table = data.find_all(name='table', attrs={'class': 'wikitable sortable'})
+        table = data.find_all(name='table', attrs={
+                              'class': 'wikitable sortable'})
         details = table[0].find_all(name='tr')[1:]
         for detail in details:
             temp = detail.find_all(name='td')
@@ -98,22 +98,32 @@ def download_thai_address():
             res[p][d] = list(set(res[p][d]))
     json.dump(res, open('th_provinces_districts_sub_districts.json', 'w', encoding='utf-8'),
               ensure_ascii=False)
-    json.dump(th_en, open('th_en_db.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    json.dump(th_en, open('th_en_db.json', 'w',
+              encoding='utf-8'), ensure_ascii=False)
     print('Finish the downloading!')
 
 
 class ThaiAddressParserClass(object):
     def __init__(self,
-                 file_path, translation_db):
+                 file_path: str, translation_db: str):
         """
+        :param file_path: {province:{district:[sub district, , , , , }}
+        """
+        # self.dictionary = json.load(open(file_path, 'r', encoding='utf-8'))
+        # self.th_en_translator = json.load(
+        #     open(translation_db, 'r', encoding='utf-8'))
+        
+        with open(file_path, 'r', encoding='utf-8') as file:
+            self.dictionary = json.load(file)
 
-        :param file_path: {province:{district:[sub district，，，，，]}}
-        """
-        self.dictionary = json.load(open(file_path, 'r', encoding='utf-8'))
-        self.th_en_translator = json.load(open(translation_db, 'r', encoding='utf-8'))
+        with open(translation_db, 'r', encoding='utf-8') as file:
+            self.th_en_translator = json.load(file)
+
+
         self.sub_district_dict = {}
         self.district_dict = {}  # sub_district :[district, province]
-
+        self.file_path = file_path
+        self.translation_db = translation_db
         self.address_list = []
         self.thai_parts = []
         self.thai_parts_index = []
@@ -149,9 +159,8 @@ class ThaiAddressParserClass(object):
                     else:
                         self.non_bangkok_sub_districts.append(s)
 
-    def parse(self, address):
+    def parse(self, address: str) -> list | list[str]:
         '''
-
         :param address: string type
         :return:
         '''
@@ -198,27 +207,32 @@ class ThaiAddressParserClass(object):
                 if i == 'กรุงเทพมหานคร':
                     self.bangkok_flags.append(len(self.thai_parts) - 1)
                 if 'จ.' in i:
-                    self.non_bangkok_province_index.append(len(self.thai_parts) - 1)
+                    self.non_bangkok_province_index.append(
+                        len(self.thai_parts) - 1)
                     t = i.index('จ.')
                     self.o_province.append(i[(t + 2):])
                 if 'อ.' in i:
-                    self.non_bangkok_district_index.append(len(self.thai_parts) - 1)
+                    self.non_bangkok_district_index.append(
+                        len(self.thai_parts) - 1)
                     t = i.index('อ.')
                     self.o_district.append(i[(t + 2):])
                 if 'ต.' in i:
-                    self.non_bangkok_sub_district_index.append(len(self.thai_parts) - 1)
+                    self.non_bangkok_sub_district_index.append(
+                        len(self.thai_parts) - 1)
                     t = i.index('ต.')
                     self.o_sub_district.append(i[(t + 2):])
         non_bangkok_index = self.non_bangkok_sub_district_index + self.non_bangkok_district_index + \
-                            self.non_bangkok_province_index
+            self.non_bangkok_province_index
         if len(self.bangkok_flags) and len(non_bangkok_index) == 0:
             try:
                 res = self.parse_bangkok()
             except:
                 detailed_address = ' '.join(self.address_list)
                 province = 'กรุงเทพมหานคร'
-                district = random.choice(list(self.dictionary['กรุงเทพมหานคร'].keys()))
-                sub_district = random.choice(list(self.dictionary['กรุงเทพมหานคร'][district]))
+                district = random.choice(
+                    list(self.dictionary['กรุงเทพมหานคร'].keys()))
+                sub_district = random.choice(
+                    list(self.dictionary['กรุงเทพมหานคร'][district]))
                 res = ['{} {} {} {}'.format(detailed_address, sub_district, district, province),
                        detailed_address, sub_district, district, province]
         elif len(self.bangkok_flags) == 0 and len(non_bangkok_index):
@@ -227,8 +241,10 @@ class ThaiAddressParserClass(object):
             except:
                 detailed_address = ' '.join(self.address_list)
                 province = random.choice(self.non_bangkok_provinces)
-                district = random.choice(list(self.dictionary[province].keys()))
-                sub_district = random.choice(self.dictionary[province][district])
+                district = random.choice(
+                    list(self.dictionary[province].keys()))
+                sub_district = random.choice(
+                    self.dictionary[province][district])
                 res = ['{} {} {} {}'.format(detailed_address, sub_district, district, province),
                        detailed_address, sub_district, district, province]
         elif len(self.bangkok_flags) and len(non_bangkok_index):
@@ -243,8 +259,10 @@ class ThaiAddressParserClass(object):
                 except:
                     detailed_address = ' '.join(self.address_list)
                     province = random.choice(self.non_bangkok_provinces)
-                    district = random.choice(list(self.dictionary[province].keys()))
-                    sub_district = random.choice(self.dictionary[province][district])
+                    district = random.choice(
+                        list(self.dictionary[province].keys()))
+                    sub_district = random.choice(
+                        self.dictionary[province][district])
                     res = ['{} {} {} {}'.format(detailed_address, sub_district, district, province),
                            detailed_address, sub_district, district, province]
             else:
@@ -253,8 +271,10 @@ class ThaiAddressParserClass(object):
                 except:
                     detailed_address = ' '.join(self.address_list)
                     province = 'กรุงเทพมหานคร'
-                    district = random.choice(list(self.dictionary['กรุงเทพมหานคร'].keys()))
-                    sub_district = random.choice(list(self.dictionary['กรุงเทพมหานคร'][district]))
+                    district = random.choice(
+                        list(self.dictionary['กรุงเทพมหานคร'].keys()))
+                    sub_district = random.choice(
+                        list(self.dictionary['กรุงเทพมหานคร'][district]))
                     res = ['{} {} {} {}'.format(detailed_address, sub_district, district, province),
                            detailed_address, sub_district, district, province]
         else:
@@ -263,8 +283,10 @@ class ThaiAddressParserClass(object):
             except:
                 detailed_address = ' '.join(self.address_list)
                 province = random.choice(list(self.dictionary.keys()))
-                district = random.choice(list(self.dictionary[province].keys()))
-                sub_district = random.choice(self.dictionary[province][district])
+                district = random.choice(
+                    list(self.dictionary[province].keys()))
+                sub_district = random.choice(
+                    self.dictionary[province][district])
                 res = ['{} {} {} {}'.format(detailed_address, sub_district, district, province),
                        detailed_address, sub_district, district, province]
 
@@ -281,9 +303,8 @@ class ThaiAddressParserClass(object):
 
         return res
 
-    def parse_bangkok_sub_district(self, district, bangkok_idx):
+    def parse_bangkok_sub_district(self, district: str, bangkok_idx: int) -> tuple[str, str, float | int]:
         '''
-
         :param district:
         :param bangkok_idx:
         :return:
@@ -302,7 +323,8 @@ class ThaiAddressParserClass(object):
                     if sub_district_candidate_2 in self.dictionary['กรุงเทพมหานคร'][district]:
                         sub_district = sub_district_candidate_2
                         original_index = self.thai_parts_index[bangkok_idx - 3][1]
-                        detailed_address = ' '.join(self.address_list[:original_index])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_index])
                         prob = 1
                     else:
                         '''
@@ -334,18 +356,21 @@ class ThaiAddressParserClass(object):
                         if max_degree_1 >= max_degree_2:
                             sub_district = sub_1
                             original_index = self.thai_parts_index[bangkok_idx - 2][1]
-                            detailed_address = ' '.join(self.address_list[:original_index])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_index])
                             prob = max_degree_1
                         else:
                             sub_district = sub_2
                             original_index = self.thai_parts_index[bangkok_idx - 3][1]
-                            detailed_address = ' '.join(self.address_list[:original_index])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_index])
                             prob = max_degree_2
                 else:
                     max_degree_1 = 0
                     sub_1 = sub_district_candidate
                     for value in self.dictionary['กรุงเทพมหานคร'][district]:
-                        degree_1 = compute_similarity(value, sub_district_candidate, mode=1)
+                        degree_1 = compute_similarity(
+                            value, sub_district_candidate, mode=1)
                         # degree_1 = difflib.SequenceMatcher(None, value,
                         #                                    sub_district_candidate).quick_ratio()
                         if degree_1 > max_degree_1:
@@ -353,16 +378,18 @@ class ThaiAddressParserClass(object):
                             sub_1 = value
                     sub_district = sub_1
                     original_index = self.thai_parts_index[bangkok_idx - 2][1]
-                    detailed_address = ' '.join(self.address_list[:original_index])
+                    detailed_address = ' '.join(
+                        self.address_list[:original_index])
                     prob = max_degree_1
         else:
             original_index = self.thai_parts_index[bangkok_idx - 1][1]
-            sub_district = random.choice(self.dictionary['กรุงเทพมหานคร'][district])
+            sub_district = random.choice(
+                self.dictionary['กรุงเทพมหานคร'][district])
             detailed_address = ' '.join(self.address_list[:original_index])
             prob = 0
         return sub_district, detailed_address, prob
 
-    def parse_bangkok_district_sub_district_detailed_address(self, bangkok_idx):
+    def parse_bangkok_district_sub_district_detailed_address(self, bangkok_idx: int) -> tuple[str, str, str, float | int]:
         if bangkok_idx - 1 >= 0:
             district_candidate = self.thai_parts[bangkok_idx - 1]
             if district_candidate in self.bangkok_districts:
@@ -384,8 +411,10 @@ class ThaiAddressParserClass(object):
                         max_degree_2 = 0
                         district_2 = district_candidate_2
                         for value in self.bangkok_districts:
-                            degree_1 = compute_similarity(value, district_candidate, mode=1)
-                            degree_2 = compute_similarity(value, district_candidate, mode=1)
+                            degree_1 = compute_similarity(
+                                value, district_candidate, mode=1)
+                            degree_2 = compute_similarity(
+                                value, district_candidate, mode=1)
                             # degree_1 = difflib.SequenceMatcher(None, value,
                             #                                    district_candidate).quick_ratio()
                             # degree_2 = difflib.SequenceMatcher(None, value,
@@ -412,7 +441,8 @@ class ThaiAddressParserClass(object):
                     max_degree_1 = 0
                     district_1 = district_candidate
                     for value in self.bangkok_districts:
-                        degree_1 = compute_similarity(value, district_candidate, mode=1)
+                        degree_1 = compute_similarity(
+                            value, district_candidate, mode=1)
                         # degree_1 = difflib.SequenceMatcher(None, value,
                         #                                    district_candidate).quick_ratio()
                         if degree_1 > max_degree_1:
@@ -424,13 +454,14 @@ class ThaiAddressParserClass(object):
                     prob = max_degree_1 * sub_district_prob
         else:
             district = random.choice(self.bangkok_districts)
-            sub_district = random.choice(self.dictionary['กรุงเทพมหานคร'][district])
+            sub_district = random.choice(
+                self.dictionary['กรุงเทพมหานคร'][district])
             original_index = self.thai_parts_index[bangkok_idx][1]
             detailed_address = ' '.join(self.address_list[:original_index])
             prob = 0
         return district, sub_district, detailed_address, prob
 
-    def parse_bangkok(self):
+    def parse_bangkok(self) -> list[str]:
         province = 'กรุงเทพมหานคร'
         district = 'null'
         sub_district = 'null'
@@ -444,8 +475,8 @@ class ThaiAddressParserClass(object):
             max_prob = 0
             for idx in self.bangkok_flags:
                 t_district, t_sub_district, t_detailed_address, \
-                prob = self.parse_bangkok_district_sub_district_detailed_address(
-                    idx)
+                    prob = self.parse_bangkok_district_sub_district_detailed_address(
+                        idx)
                 if prob >= max_prob:
                     district = t_district
                     sub_district = t_sub_district
@@ -455,31 +486,35 @@ class ThaiAddressParserClass(object):
                   detailed_address, sub_district, district, province]
         return result
 
-    def parse_other_province(self):
+    def parse_other_province(self) -> list:
         province = 'null'
         district = 'null'
         sub_district = 'null'
         detailed_address = 'null'
         if len(self.o_province) and len(self.o_district):
-            inter_provinces = list(set(self.o_province) & set(self.non_bangkok_provinces))
+            inter_provinces = list(set(self.o_province)
+                                   & set(self.non_bangkok_provinces))
             if len(inter_provinces):
                 district_candidates = []
                 for p in inter_provinces:
                     district_candidates += list(self.dictionary[p].keys())
-                inter_districts = list(set(district_candidates) & set(self.o_district))
+                inter_districts = list(
+                    set(district_candidates) & set(self.o_district))
                 if len(inter_districts):
                     sub_district_temp = []
                     for d in inter_districts:
                         p = self.district_dict[d]
                         sub_district_temp += self.dictionary[p][d]
-                    inter_sub_districts = list(set(self.o_sub_district) & set(sub_district_temp))
+                    inter_sub_districts = list(
+                        set(self.o_sub_district) & set(sub_district_temp))
                     if len(inter_sub_districts):
                         sub_district = inter_sub_districts[0]
                         district, province = self.sub_district_dict[sub_district]
                         idx = self.o_sub_district.index(sub_district)
                         idx = self.non_bangkok_sub_district_index[idx]
                         original_idx = self.thai_parts_index[idx][1]
-                        detailed_address = ' '.join(self.address_list[:original_idx])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_idx])
                     else:
                         if len(self.o_sub_district):
                             lens = [len(i) for i in self.o_sub_district]
@@ -495,7 +530,8 @@ class ThaiAddressParserClass(object):
                             idx = self.non_bangkok_sub_district_index[max_index]
                             district, province = self.sub_district_dict[sub_district]
                             original_idx = self.thai_parts_index[idx][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                         else:
                             district = inter_districts[0]
                             province = self.district_dict[district]
@@ -506,16 +542,20 @@ class ThaiAddressParserClass(object):
                                 selected_sub_district = self.thai_parts[d_idx - 1]
                                 max_degree = -1
                                 for s in sub_district_candidates:
-                                    degree = compute_similarity(selected_sub_district, s, mode=1)
+                                    degree = compute_similarity(
+                                        selected_sub_district, s, mode=1)
                                     if degree > max_degree:
                                         max_degree = degree
                                         sub_district = s
                                 original_idx = self.thai_parts_index[d_idx - 1][1]
-                                detailed_address = ' '.join(self.address_list[:original_idx])
+                                detailed_address = ' '.join(
+                                    self.address_list[:original_idx])
                             else:
-                                sub_district = random.choice(sub_district_candidates)
+                                sub_district = random.choice(
+                                    sub_district_candidates)
                                 original_idx = self.thai_parts_index[d_idx][1]
-                                detailed_address = ' '.join(self.address_list[:original_idx])
+                                detailed_address = ' '.join(
+                                    self.address_list[:original_idx])
                 else:
                     max_degree = -1
                     re_idx = 0
@@ -534,31 +574,38 @@ class ThaiAddressParserClass(object):
                         sub_district_candidate = self.o_sub_district[max_index]
                         max_degree = -1
                         for j in sub_district_candidates:
-                            degree = compute_similarity(j, sub_district_candidate, mode=1)
+                            degree = compute_similarity(
+                                j, sub_district_candidate, mode=1)
                             if degree > max_degree:
                                 max_degree = degree
                                 sub_district = j
                         idx = self.non_bangkok_sub_district_index[max_index]
                         original_idx = self.thai_parts_index[idx][1]
-                        detailed_address = ' '.join(self.address_list[:original_idx])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_idx])
                     else:
                         d_idx = self.non_bangkok_district_index[re_idx]
                         if d_idx - 1 >= 0:
                             sub_district_candidate = self.thai_parts[d_idx - 1]
                             max_degree = -1
                             for j in sub_district_candidates:
-                                degree = compute_similarity(j, sub_district_candidate, mode=1)
+                                degree = compute_similarity(
+                                    j, sub_district_candidate, mode=1)
                                 if degree > max_degree:
                                     max_degree = degree
                                     sub_district = j
                             original_idx = self.thai_parts_index[d_idx - 1][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                         else:
-                            sub_district = random.choice(sub_district_candidates)
+                            sub_district = random.choice(
+                                sub_district_candidates)
                             original_idx = self.thai_parts_index[d_idx][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
             else:
-                inter_districts = list(set(self.o_district) & set(self.non_bangkok_districts))
+                inter_districts = list(
+                    set(self.o_district) & set(self.non_bangkok_districts))
                 if len(inter_districts):
                     district = inter_districts[0]
                     province = self.district_dict[district]
@@ -569,13 +616,15 @@ class ThaiAddressParserClass(object):
                         sub_district_candidate = self.o_sub_district[max_index]
                         max_degree = -1
                         for j in sub_district_candidates:
-                            degree = compute_similarity(j, sub_district_candidate, mode=1)
+                            degree = compute_similarity(
+                                j, sub_district_candidate, mode=1)
                             if degree > max_degree:
                                 max_degree = degree
                                 sub_district = j
                         idx = self.non_bangkok_sub_district_index[max_index]
                         original_idx = self.thai_parts_index[idx][1]
-                        detailed_address = ' '.join(self.address_list[:original_idx])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_idx])
                     else:
                         d_idx = self.o_district.index(district)
                         d_idx = self.non_bangkok_district_index[d_idx]
@@ -583,16 +632,20 @@ class ThaiAddressParserClass(object):
                             selected_sub_district = self.thai_parts[d_idx - 1]
                             max_degree = -1
                             for s in sub_district_candidates:
-                                degree = compute_similarity(selected_sub_district, s, mode=1)
+                                degree = compute_similarity(
+                                    selected_sub_district, s, mode=1)
                                 if degree > max_degree:
                                     max_degree = degree
                                     sub_district = s
                             original_idx = self.thai_parts_index[d_idx - 1][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                         else:
-                            sub_district = random.choice(sub_district_candidates)
+                            sub_district = random.choice(
+                                sub_district_candidates)
                             original_idx = self.thai_parts_index[d_idx][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                 else:
                     max_degree = -1
                     for p in self.o_province:
@@ -601,7 +654,8 @@ class ThaiAddressParserClass(object):
                             if degree > max_degree:
                                 max_degree = degree
                                 province = j
-                    district_candidates = list(self.dictionary[province].keys())
+                    district_candidates = list(
+                        self.dictionary[province].keys())
                     max_degree = -1
                     re_idx = 0
                     for d_idx, d in enumerate(self.o_district):
@@ -618,32 +672,39 @@ class ThaiAddressParserClass(object):
                         sub_district_candidate = self.o_sub_district[max_index]
                         max_degree = -1
                         for j in sub_district_candidates:
-                            degree = compute_similarity(j, sub_district_candidate, mode=1)
+                            degree = compute_similarity(
+                                j, sub_district_candidate, mode=1)
                             if degree > max_degree:
                                 max_degree = degree
                                 sub_district = j
                         idx = self.non_bangkok_sub_district_index[max_index]
                         original_idx = self.thai_parts_index[idx][1]
-                        detailed_address = ' '.join(self.address_list[:original_idx])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_idx])
                     else:
                         if re_idx - 1 >= 0:
                             selected_sub_district = self.thai_parts[re_idx - 1]
                             max_degree = -1
                             for s in sub_district_candidates:
-                                degree = compute_similarity(selected_sub_district, s, mode=1)
+                                degree = compute_similarity(
+                                    selected_sub_district, s, mode=1)
                                 if degree > max_degree:
                                     max_degree = degree
                                     sub_district = s
                             original_idx = self.thai_parts_index[re_idx - 1][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                         else:
-                            sub_district = random.choice(sub_district_candidates)
+                            sub_district = random.choice(
+                                sub_district_candidates)
                             original_idx = self.thai_parts_index[re_idx][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
 
         elif len(self.o_province) and len(self.o_district) == 0:
             if len(self.o_sub_district):
-                inter_provinces = list(set(self.o_province) & set(self.non_bangkok_provinces))
+                inter_provinces = list(
+                    set(self.o_province) & set(self.non_bangkok_provinces))
                 if len(inter_provinces):
                     temp_districts = []
                     temp_sub_districts = []
@@ -651,14 +712,16 @@ class ThaiAddressParserClass(object):
                         temp_districts += list(self.dictionary[p].keys())
                         for d in self.dictionary[p].keys():
                             temp_sub_districts += self.dictionary[p][d]
-                    inter_sub_districts = list(set(self.o_sub_district) & set(temp_sub_districts))
+                    inter_sub_districts = list(
+                        set(self.o_sub_district) & set(temp_sub_districts))
                     if len(inter_sub_districts):
                         sub_district = inter_sub_districts[0]
                         district, province = self.sub_district_dict[sub_district]
                         idx = self.o_sub_district.index(sub_district)
                         idx = self.non_bangkok_sub_district_index[idx]
                         original_idx = self.thai_parts_index[idx][1]
-                        detailed_address = ' '.join(self.address_list[:original_idx])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_idx])
                     else:
                         max_degree = -1
                         re_idx = 0
@@ -672,7 +735,8 @@ class ThaiAddressParserClass(object):
                         district, province = self.sub_district_dict[sub_district]
                         idx = self.non_bangkok_sub_district_index[re_idx]
                         original_idx = self.thai_parts_index[idx][1]
-                        detailed_address = ' '.join(self.address_list[:original_idx])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_idx])
                 else:
                     max_degree = -1
                     for p in self.o_province:
@@ -684,14 +748,16 @@ class ThaiAddressParserClass(object):
                     temp_sub_districts = []
                     for d in self.dictionary[province].keys():
                         temp_sub_districts += self.dictionary[province][d]
-                    inter_sub_districts = list(set(self.o_sub_district) & set(temp_sub_districts))
+                    inter_sub_districts = list(
+                        set(self.o_sub_district) & set(temp_sub_districts))
                     if len(inter_sub_districts):
                         sub_district = inter_sub_districts[0]
                         district, province = self.sub_district_dict[sub_district]
                         idx = self.o_sub_district.index(sub_district)
                         idx = self.non_bangkok_sub_district_index[idx]
                         original_idx = self.thai_parts_index[idx][1]
-                        detailed_address = ' '.join(self.address_list[:original_idx])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_idx])
                     else:
                         max_degree = -1
                         re_idx = 0
@@ -705,9 +771,11 @@ class ThaiAddressParserClass(object):
                         district, province = self.sub_district_dict[sub_district]
                         idx = self.non_bangkok_sub_district_index[re_idx]
                         original_idx = self.thai_parts_index[idx][1]
-                        detailed_address = ' '.join(self.address_list[:original_idx])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_idx])
             else:
-                inter_provinces = list(set(self.o_province) & set(self.non_bangkok_provinces))
+                inter_provinces = list(
+                    set(self.o_province) & set(self.non_bangkok_provinces))
                 if len(inter_provinces):
                     temp_districts = []
                     temp_sub_districts = []
@@ -723,34 +791,42 @@ class ThaiAddressParserClass(object):
                             sub_district = sub_district_candidate
                             district, province = self.sub_district_dict[sub_district]
                             original_idx = self.thai_parts_index[p_idx - 2][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                         else:
                             max_degree = -1
                             for x in temp_sub_districts:
-                                degree = compute_similarity(sub_district_candidate, x)
+                                degree = compute_similarity(
+                                    sub_district_candidate, x)
                                 if degree > max_degree:
                                     max_degree = degree
                                     sub_district = x
                             district, province = self.sub_district_dict[sub_district]
                             original_idx = self.thai_parts_index[p_idx - 2][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                     else:
                         if p_idx - 1 >= 0:
                             district_candidate = self.thai_parts[p_idx - 1]
                             max_degree = -1
                             for d in temp_districts:
-                                degree = compute_similarity(district_candidate, d, mode=1)
+                                degree = compute_similarity(
+                                    district_candidate, d, mode=1)
                                 if degree > max_degree:
                                     max_degree = degree
                                     district = d
-                            sub_district = random.choice(self.dictionary[province][district])
+                            sub_district = random.choice(
+                                self.dictionary[province][district])
                             original_idx = self.thai_parts_index[p_idx - 1][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                         else:
                             district = random.choice(temp_districts)
-                            sub_district = random.choice(self.dictionary[province][district])
+                            sub_district = random.choice(
+                                self.dictionary[province][district])
                             original_idx = self.thai_parts_index[p_idx][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                 else:
                     max_degree = -1
                     re_idx = 0
@@ -773,51 +849,62 @@ class ThaiAddressParserClass(object):
                             sub_district = sub_district_candidate
                             district, province = self.sub_district_dict[sub_district]
                             original_idx = self.thai_parts_index[p_idx - 2][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                         else:
                             max_degree = -1
                             for x in temp_sub_districts:
-                                degree = compute_similarity(sub_district_candidate, x)
+                                degree = compute_similarity(
+                                    sub_district_candidate, x)
                                 if degree > max_degree:
                                     max_degree = degree
                                     sub_district = x
                             district, province = self.sub_district_dict[sub_district]
                             original_idx = self.thai_parts_index[p_idx - 2][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                     else:
                         if p_idx - 1 >= 0:
                             district_candidate = self.thai_parts[p_idx - 1]
                             max_degree = -1
                             for d in temp_districts:
-                                degree = compute_similarity(district_candidate, d, mode=1)
+                                degree = compute_similarity(
+                                    district_candidate, d, mode=1)
                                 if degree > max_degree:
                                     max_degree = degree
                                     district = d
-                            sub_district = random.choice(self.dictionary[province][district])
+                            sub_district = random.choice(
+                                self.dictionary[province][district])
                             original_idx = self.thai_parts_index[p_idx - 1][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                         else:
                             district = random.choice(temp_districts)
-                            sub_district = random.choice(self.dictionary[province][district])
+                            sub_district = random.choice(
+                                self.dictionary[province][district])
                             original_idx = self.thai_parts_index[p_idx][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
 
         elif len(self.o_province) == 0 and len(self.o_district):
-            inter_districts = list(set(self.o_district) & set(self.non_bangkok_districts))
+            inter_districts = list(set(self.o_district)
+                                   & set(self.non_bangkok_districts))
             if len(inter_districts):
                 temp_sub_districts = []
                 for j in inter_districts:
                     j_p = self.district_dict[j]
                     j_sub_districts = self.dictionary[j_p][j]
                     temp_sub_districts += j_sub_districts
-                inter_sub_districts = list(set(self.o_sub_district) & set(temp_sub_districts))
+                inter_sub_districts = list(
+                    set(self.o_sub_district) & set(temp_sub_districts))
                 if len(inter_sub_districts):
                     sub_district = inter_sub_districts[0]
                     district, province = self.sub_district_dict[sub_district]
                     idx = self.o_sub_district.index(sub_district)
                     idx = self.non_bangkok_sub_district_index[idx]
                     original_idx = self.thai_parts_index[idx][1]
-                    detailed_address = ' '.join(self.address_list[:original_idx])
+                    detailed_address = ' '.join(
+                        self.address_list[:original_idx])
                 else:
                     if len(self.o_sub_district):
                         max_degree = -1
@@ -829,11 +916,13 @@ class ThaiAddressParserClass(object):
                                     max_degree = degree
                                     sub_district = j
                                     selected_o_sub_district = i
-                        idx = self.o_sub_district.index(selected_o_sub_district)
+                        idx = self.o_sub_district.index(
+                            selected_o_sub_district)
                         idx = self.non_bangkok_sub_district_index[idx]
                         original_idx = self.thai_parts_index[idx][1]
                         district, province = self.sub_district_dict[sub_district]
-                        detailed_address = ' '.join(self.address_list[:original_idx])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_idx])
                     else:
                         district = inter_districts[0]
                         province = self.district_dict[district]
@@ -850,14 +939,17 @@ class ThaiAddressParserClass(object):
                                     max_degree = degree
                                     sub_district = sub_district_candidate
                             original_idx = self.thai_parts_index[idx - 1][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
                         else:
                             sub_district = random.choice(all_sub_districts)
                             original_idx = self.thai_parts_index[idx][1]
-                            detailed_address = ' '.join(self.address_list[:original_idx])
+                            detailed_address = ' '.join(
+                                self.address_list[:original_idx])
             else:
                 if len(self.o_sub_district):
-                    inter_sub_districts = list(set(self.o_sub_district) & set(self.non_bangkok_sub_districts))
+                    inter_sub_districts = list(
+                        set(self.o_sub_district) & set(self.non_bangkok_sub_districts))
                     max_degree = -1
                     if len(inter_sub_districts):
                         for i in inter_sub_districts:
@@ -872,7 +964,8 @@ class ThaiAddressParserClass(object):
                         idx = self.o_sub_district.index(sub_district)
                         idx = self.non_bangkok_sub_district_index[idx]
                         original_idx = self.thai_parts_index[idx][1]
-                        detailed_address = ' '.join(self.address_list[:original_idx])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_idx])
                     else:
                         district_candidates = self.o_district
                         lens = [len(i) for i in district_candidates]
@@ -887,17 +980,21 @@ class ThaiAddressParserClass(object):
                                 district = j
                         province = self.district_dict[district]
                         sub_district_candidates = self.dictionary[province][district]
-                        sub_districts_lens = [len(i) for i in self.o_sub_district]
-                        max_index = sub_districts_lens.index(max(sub_districts_lens))
+                        sub_districts_lens = [len(i)
+                                              for i in self.o_sub_district]
+                        max_index = sub_districts_lens.index(
+                            max(sub_districts_lens))
                         selected_sub_district = self.o_sub_district[max_index]
                         max_degree = -1
                         for s in sub_district_candidates:
-                            degree = compute_similarity(s, selected_sub_district, mode=1)
+                            degree = compute_similarity(
+                                s, selected_sub_district, mode=1)
                             if degree > max_degree:
                                 sub_district = s
                         idx = self.non_bangkok_sub_district_index[max_index]
                         original_index = self.thai_parts_index[idx][1]
-                        detailed_address = ' '.join(self.address_list[:original_index])
+                        detailed_address = ' '.join(
+                            self.address_list[:original_index])
                 else:
                     district_candidates = self.o_district
                     lens = [len(i) for i in district_candidates]
@@ -922,14 +1019,17 @@ class ThaiAddressParserClass(object):
                             if degree > max_degree:
                                 max_degree = degree
                                 sub_district = s
-                        detailed_address = ' '.join(self.address_list[:(self.thai_parts_index[idx - 1][1])])
+                        detailed_address = ' '.join(
+                            self.address_list[:(self.thai_parts_index[idx - 1][1])])
                     else:
                         sub_district = random.choice(sub_district_candidates)
-                        detailed_address = ' '.join(self.address_list[:(self.thai_parts_index[idx][1])])
+                        detailed_address = ' '.join(
+                            self.address_list[:(self.thai_parts_index[idx][1])])
 
         else:
             sub_district_candidates = self.o_sub_district
-            inter_sub_districts = list(set(sub_district_candidates) & set(self.non_bangkok_sub_districts))
+            inter_sub_districts = list(
+                set(sub_district_candidates) & set(self.non_bangkok_sub_districts))
             if len(inter_sub_districts):
                 sub_district = inter_sub_districts[0]
                 district, province = self.sub_district_dict[sub_district]
@@ -957,7 +1057,7 @@ class ThaiAddressParserClass(object):
                   detailed_address, sub_district, district, province]
         return result
 
-    def parse_none_flags_address(self):
+    def parse_none_flags_address(self) -> list:
         province = 'null'
         district = 'null'
         sub_district = 'null'
@@ -1027,6 +1127,9 @@ class ThaiAddressParserClass(object):
         return result
 
 
+json_file_path = 'th_provinces_districts_sub_districts.json'
+translation_db = 'th_en_db.json'
+
 if os.path.exists('th_provinces_districts_sub_districts.json') and os.path.exists('th_en_db.json'):
     app = ThaiAddressParserClass(file_path='th_provinces_districts_sub_districts.json',
                                  translation_db='th_en_db.json')
@@ -1035,8 +1138,18 @@ else:
     app = ThaiAddressParserClass(file_path='th_provinces_districts_sub_districts.json',
                                  translation_db='th_en_db.json')
 
+def set_download_path(json_file_path=json_file_path, translation_db=translation_db):
+    global app
+    app = ThaiAddressParserClass(file_path=json_file_path, translation_db=translation_db)
+    return app
 
-def parse(address):
+def get_file_path():
+    return app.file_path
+
+def get_translation_db():
+    return app.translation_db
+
+def parse(address: str) -> dict:
     res = app.parse(address)
     return {
         'original_address': address,
