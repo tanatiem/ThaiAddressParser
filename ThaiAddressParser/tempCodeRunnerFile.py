@@ -1,1 +1,1 @@
-self.address_list[:original_index-1])
+auto_download=True

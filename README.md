@@ -21,11 +21,52 @@ For python2:
 pip install ThaiAddressParser
 ```
 ## Usage
-```angular2
+
+### import library
+
+```python
+import ThaiAddressParser
+
+ThaiAddressParser.init()
+```
+
+#### optional parameters
+
+```python
+json_file_path: str = json_file_path
+translation_db: str = translation_db
+auto_download=True # auto download if the json file is not found
+```
+
+### getter / setter
+
+```python
+get_file_path() -> [str, str] # get the json file path
+set_dictionary(file_path: str) # set the thai address
+set_th_en_translator(th_en_translator: str) # set the thai-en translator
+set_threshold(threshold: float) # set the threshold
+get_threshold() -> float # get the threshold
+```
+
+### function
+
+```python
+translate_th_en(thai: str) -> str # translate thai to english
+```
+
+### basic usage
+
+```python
 >>> import ThaiAddressParser
+>>> ThaiAddressParser.set_threshold(0.66)
 >>> address = '7503 ถ.ราชญาวิริกษา ต.ม.ก่องคร อ.เมืองสมุทรสงคราม 10 จ.สมุทรสงคราม'
 >>> ThaiAddressParser.parse(address)
-{'original_address': '7503 ถ.ราชญาวิริกษา ต.ม.ก่องคร อ.เมืองสมุทรสงคราม 10 จ.สมุทรสงคราม', 'parsed_address': '7503 ถ.ราชญาวิริกษา ต.แม่กลอง อ.อุ้มผาง จ.ตาก', 'province': {'thai': 'ตาก', 'en': 'Tak'}, 'district': {'thai': 'อุ้มผาง', 'en': 'Umphang'}, 'sub_district': {'thai': 'แม่กลอง', 'en': 'Mae Klong'}, 'remaining_address': '7503 ถ.ราชญาวิริกษา'}
+{'original_address': '7503 ถ.ราชญาวิริกษา ต.ม.ก่องคร อ.เมืองสมุทรสงคราม 10 จ.สมุทรสงคราม',
+ 'parsed_address': '7503 ถ.ราชญาวิริกษา ต.แม่กลอง อ.อุ้มผาง จ.ตาก',
+ 'province': {'thai': 'ตาก', 'en': 'Tak'},
+ 'district': {'thai': 'อุ้มผาง', 'en': 'Umphang'},
+ 'sub_district': {'thai': 'แม่กลอง', 'en': 'Mae Klong'},
+ 'remaining_address': '7503 ถ.ราชญาวิริกษา'}
 ```
 
 ## License
