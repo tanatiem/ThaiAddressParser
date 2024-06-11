@@ -1476,7 +1476,18 @@ def remaining_address(address: str, strict=True) -> list:
 
 
 def parse(address: str) -> dict:
-    res = app.parse(address)
+    try:
+        res = app.parse(address)
+    except Exception as e:
+        return {
+        'original_address': '',
+        'parsed_address': '',
+        'province': {'thai': '', 'en': '' or ''},
+        'district': {'thai': '', 'en': '' or ''},
+        'sub_district': {'thai': '', 'en': '' or ''},
+        'remaining_address': ''
+    }
+
 
     return {
         'original_address': address,
